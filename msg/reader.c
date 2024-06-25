@@ -1,60 +1,31 @@
-#include <unistd.h>
-#include <stdlib.h>
 #include <stdio.h>
-#include <string.h>
+#include <sys/ipc.h>
+#include <sys/msg.h>
 
-#define MSG_LEN 64
+// structure for message queue
+struct mesg_buffer {
+    long mesg_type;
+    char mesg_text[100];
+} message;
 
 int main() {
-    int result;
-    int fd[2];
-    char message[MSG_LEN];
-    char recvd_msg[MSG_LEN];  // Fix the typo here (was MSG_LE)
+    key_t key;
+    int msgid;
 
-    // Creating a pipe: fd[0] is for reading and fd[1] is for writing
-    result = pipe(fd);
-    if (result < 0) {
-        perror("pipe");
-        exit(1);
-    }
+    // ftok to generate unique key
+    key = ftok("progfile", 65);
 
-    strncpy(message, "Linux World!! ", MSG_LEN);
-    result = write(fd[1], message, strlen(message) + 1);
-    if (result < 0) {
-        perror("write");
-        exit(2);
-    }
+    // msgget creates a message queue and returns identifier
+    msgid = msgget(key, 0666 | IPC_CREAT);
 
-    strncpy(message, "Understanding ", MSG_LEN);
-    result = write(fd[1], message, strlen(message) + 1);
-    if (result < 0) {
-        perror("write");
-        exit(2);
-    }
+    // msgrcv to receive message
+    msgrcv(msgid, &message, sizeof(message), 1, 0);
 
-    strncpy(message, "Concepts of ", MSG_LEN);
-    result = write(fd[1], message, strlen(message) + 1);
-    if (result < 0) {
-        perror("write");
-        exit(2);
-    }
+    // display the message
+    printf("Data Received is: %s\n", message.mesg_text);
 
-    strncpy(message, "Piping ", MSG_LEN);
-    result = write(fd[1], message, strlen(message) + 1);
-    if (result < 0) {
-        perror("write");
-        exit(2);
-    }
-
-    // Read messages from the pipe
-    while ((result = read(fd[0], recvd_msg, MSG_LEN)) > 0) {
-        printf("Received: %s\n", recvd_msg);
-    }
-
-    if (result < 0) {
-        perror("read");
-        exit(3);
-    }
+    // to destroy the message queue
+    msgctl(msgid, IPC_RMID, NULL);
 
     return 0;
 }
